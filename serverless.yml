@@ -1,0 +1,55 @@
+service: lambda-metamask-auth-api-lifechain
+
+frameworkVersion: '3'
+
+custom:
+  userTable: users-lifechain
+  tableThroughputs:
+    dev: "10"
+  customProviderName: my.ether.login
+
+provider:
+  region: eu-west-2
+  name: aws
+  stage: dev
+  runtime: nodejs16.x
+  environment:
+    DEVELOPER_PROVIDER_NAME: ${self:custom.customProviderName}
+    USERTABLE_NAME: ${self:custom.userTable}
+    IDENTITY_POOL_ID: { Ref: CognitoIdentityPool }
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:GetItem"
+        - "dynamodb:PutItem"
+        - "dynamodb:UpdateItem"
+        - "dynamodb:ExecuteStatement"
+        - "dynamodb:PartiQLSelect"
+      Resource:
+        - "Fn::GetAtt": [UserTable, Arn]
+        - "Fn::Join":
+            - "/"
+            - - { "Fn::GetAtt": [UserTable, Arn] }
+              - "index/*"
+    - Effect: "Allow"
+      Action:
+        - "cognito-identity:GetCredentialsForIdentity"
+        - "cognito-identity:GetOpenIdTokenForDeveloperIdentity"
+      Resource:
+        - "Fn::Join":
+            - "/"
+            - - "arn:aws:cognito-identity:${aws:region}:${aws:accountId}:identitypool"
+              - Ref: CognitoIdentityPool
+functions:
+  Login: ${file(resources/functions.yml):Login}
+  GetNonce: ${file(resources/functions.yml):GetNonce}
+  Signup: ${file(resources/functions.yml):Signup}
+  Hello: ${file(resources/functions.yml):Hello}
+
+resources:
+  Resources:
+    UserTable: ${file(resources/tables.yml):UserTable}
+    CognitoIdentityPool: ${file(resources/cognito.yml):CognitoIdentityPool}
+    CognitoAuthorizedRole: ${file(resources/cognito.yml):CognitoAuthorizedRole}
+    CognitoUnAuthorizedRole: ${file(resources/cognito.yml):CognitoUnAuthorizedRole}
+    CognitoIdentityPoolRolesMapping: ${file(resources/cognito.yml):CognitoIdentityPoolRolesMapping}
